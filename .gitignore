@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.db
+*.db-shm
+*.db-wal
+*.user
+
+.venv/
+__pycache__/
+.pytest_cache/

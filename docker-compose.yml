@@ -1,0 +1,23 @@
+# 실행: docker compose up --build   →  http://localhost:8080/health
+# 비밀번호는 예시입니다. 실제 환경에서는 .env 파일이나 시크릿으로 바꾸세요.
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Wms_Passw0rd!"
+    ports: ["1433:1433"]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      retries: 10
+  api:
+    build: .
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      Database__Provider: SqlServer
+      ConnectionStrings__Default: "Server=db;Database=Wms;User Id=sa;Password=Wms_Passw0rd!;TrustServerCertificate=True"
+      Jwt__Key: "change-this-to-a-long-random-secret-at-least-32-chars"
+      ASPNETCORE_ENVIRONMENT: Development
+    ports: ["8080:8080"]
