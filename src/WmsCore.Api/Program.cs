@@ -36,6 +36,11 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<StockService>();
+builder.Services.AddHttpClient<ForecastClient>(c =>
+{
+    c.BaseAddress = new Uri(builder.Configuration["AiService:BaseUrl"] ?? "http://localhost:8000");
+    c.Timeout = TimeSpan.FromSeconds(30); // AI 서비스가 느려도 요청이 무한정 매달리지 않게
+});
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();

@@ -11,11 +11,16 @@ services:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" || exit 1"]
       interval: 10s
       retries: 10
+  ai:
+    build: ./ai-service
+    ports: ["8000:8000"]
   api:
     build: .
     depends_on:
       db: { condition: service_healthy }
+      ai: { condition: service_started }
     environment:
+      AiService__BaseUrl: "http://ai:8000"
       Database__Provider: SqlServer
       ConnectionStrings__Default: "Server=db;Database=Wms;User Id=sa;Password=Wms_Passw0rd!;TrustServerCertificate=True"
       Jwt__Key: "change-this-to-a-long-random-secret-at-least-32-chars"

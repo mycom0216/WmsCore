@@ -26,7 +26,17 @@ C# 14 · .NET 10 · ASP.NET Core Web API · EF Core 10 · SQLite(개발) / SQL S
 
 ## Python AI 서비스
 
-[`ai-service/`](ai-service/README.md): 일별 출고 이력으로 수요를 예측하고 발주점·발주량을 제안하는 FastAPI 서비스(pandas, scikit-learn). 기준선 대비 백테스트로 모델을 고릅니다. 현재 WmsCore와는 API로 직접 연결돼 있지 않고 이력을 요청 본문으로 받습니다.
+[`ai-service/`](ai-service/README.md): 일별 출고 이력으로 수요를 예측하고 발주점·발주량을 제안하는 FastAPI 서비스(pandas, scikit-learn). 기준선 대비 백테스트로 모델을 고릅니다.
+
+**WmsCore ↔ AI 서비스 연동**: `GET /api/products/{sku}/replenishment`를 부르면 WmsCore가 수불 원장에서 일별 순출고량(할당 − 취소 복구)을 집계하고 현재고와 함께 AI 서비스(`POST /forecast`)로 보낸 뒤, 예측과 발주 제안을 돌려줍니다. `GET /api/products/{sku}/daily-outbound`로 집계 이력만 볼 수도 있습니다.
+
+```
+클라이언트 → WmsCore (JWT 인증, 원장 집계, 현재고 합계) → AI 서비스 (백테스트로 모델 선택, 예측, 발주점 계산) → 응답
+```
+
+- 설정: `AiService__BaseUrl` (기본 `http://localhost:8000`, docker compose에서는 `http://ai:8000`). 호출 제한 시간 30초.
+- 장애 처리: AI 서비스가 꺼져 있거나 오류면 WmsCore가 **503**(ProblemDetails)으로 응답하고, 이력이 60일보다 짧으면 **422**를 전달합니다. 재고 입출고 같은 핵심 기능은 AI 서비스와 무관하게 동작합니다.
+- 테스트: 가짜 AI 서버로 요청 내용(snake_case, 현재고, 이력)·503·422를 검증하고, `WMS_AI_URL=http://localhost:8000`을 주면 실제 파이썬 서비스와의 연동 테스트도 돌아갑니다.
 
 ## 실행
 
@@ -63,7 +73,7 @@ curl -X POST localhost:5000/api/auth/login -H "Content-Type: application/json" -
 dotnet test
 ```
 
-실제 서버 파이프라인(인증, 검증, 예외 처리, DB 트랜잭션)을 통과하는 통합 테스트 10개. 대표 시나리오:
+실제 서버 파이프라인(인증, 검증, 예외 처리, DB 트랜잭션)을 통과하는 통합 테스트 16개(실제 AI 서비스 연동 1개는 `WMS_AI_URL`이 있을 때만 실행). 대표 시나리오:
 
 - 재고 10개에 **동시 주문 50건** → 정확히 10건 성공, 40건 409, 최종 재고 0
 - 같은 주문을 **동시에 10번 취소** → 1번만 성공, 재고는 한 번만 복구
@@ -75,5 +85,6 @@ dotnet test
 
 - 스키마는 `EnsureCreated`로 만들었습니다. 운영 배포에는 EF Core **마이그레이션**으로 전환해야 합니다.
 - 동시성 테스트는 SQLite로 검증했습니다. SQL Server용 `docker-compose.yml`은 작성했지만 이 저장소의 테스트는 SQL Server에서 돌리지 않았습니다. 같은 SQL 문이라 동작이 같을 것으로 보지만 실측은 아닙니다.
+- 보충 제안은 요청 때마다 AI 서비스를 동기 호출합니다. 트래픽이 많아지면 결과 캐시나 배치 계산이 필요합니다.
 - 출하는 상태 변경만 합니다(송장·배송 연동 없음). 로그인 시도 횟수 제한, 리프레시 토큰, 캐시(Redis)는 아직 없습니다.
 - 다음 확장 후보: Outbox 패턴으로 ERP 연동 이벤트 발행, 재고 실사(조정) API, Serilog 구조화 로그 + OpenTelemetry.

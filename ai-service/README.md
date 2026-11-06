@@ -43,4 +43,4 @@ curl -X POST localhost:8000/forecast -H "Content-Type: application/json" -d @req
 - **데이터는 직접 만든 가상 수요**(요일 패턴 + 완만한 증가 + 프로모션 + 잡음)입니다. 실제 수요에서의 성능을 보장하지 않습니다.
 - GradientBoosting의 개선 폭은 seed에 따라 작습니다(seed 11은 19.3% vs 19.6%로 사실상 비슷). 표본이 적어 우연과 구분되지 않을 수 있습니다.
 - 공휴일·가격·재고 부족으로 인한 판매 손실(검열된 수요)은 반영하지 않습니다.
-- WmsCore와는 아직 직접 연결하지 않았습니다. 현재는 이력을 요청 본문으로 받습니다. 다음 단계: WmsCore에 날짜 범위 출고 집계 API를 추가하고 이 서비스가 호출하는 연동.
+- WmsCore가 이 서비스를 호출합니다(`GET /api/products/{sku}/replenishment`, 루트 README 참고). 다만 WmsCore가 쓰는 출고 이력은 서버 시간으로만 쌓이므로, 연동을 실제 데이터로 시연하려면 60일 이상의 이력이 필요합니다.
